@@ -158,7 +158,7 @@ func TestRenderDashboard(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := string(b)
-	for _, want := range []string{"1 site(s) down", "https://example.com", "205.00", "+4.00% today", "<svg"} {
+	for _, want := range []string{"1 site(s) down", "https://example.com", "205.00", "&#43;4.00% today", "<svg"} // html/template escapes "+" {
 		if !strings.Contains(html, want) {
 			t.Errorf("dashboard missing %q", want)
 		}
