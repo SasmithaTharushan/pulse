@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="300">
+<title>{{.Title}}</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #6b7280; --line: #e5e7eb;
+    --ok: #16a34a; --bad: #dc2626; --none: #d1d5db; --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #171a21; --text: #e8eaed; --muted: #9aa0a6; --line: #262a33;
+            --ok: #22c55e; --bad: #f87171; --none: #333844; --accent: #60a5fa; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: -0.02em; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 32px 0 12px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .banner { margin-top: 16px; padding: 14px 16px; border-radius: 10px; font-weight: 600;
+            background: color-mix(in srgb, var(--ok) 14%, var(--card)); color: var(--ok); }
+  .banner.bad { background: color-mix(in srgb, var(--bad) 14%, var(--card)); color: var(--bad); }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .target { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; text-decoration: none; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex: none; }
+  .dot.bad { background: var(--bad); }
+  .big { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 8px; }
+  .up { color: var(--ok); } .down { color: var(--bad); }
+  .spark { width: 100%; height: 40px; display: block; margin-top: 8px; color: var(--accent); }
+  .ticks { display: flex; gap: 2px; margin-top: 10px; height: 22px; }
+  .ticks i { flex: 1; border-radius: 2px; background: var(--ok); }
+  .ticks i.fail { background: var(--bad); } .ticks i.none { background: var(--none); }
+  .err { color: var(--bad); font-size: 12px; margin-top: 4px; }
+  footer { margin-top: 40px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>{{.Title}}</h1>
+    <span class="muted">Updated <time datetime="{{.UpdatedISO}}" id="upd">{{.Updated}}</time></span>
+  </header>
+
+  {{if .Sites}}
+  {{if .DownCount}}<div class="banner bad">{{.DownCount}} site(s) down</div>
+  {{else}}<div class="banner">All sites operational</div>{{end}}
+
+  <h2>Websites</h2>
+  <div class="grid">
+  {{range .Sites}}
+    <div class="card">
+      <div class="row"><span class="name">{{.Label}}</span><span class="dot{{if not .OK}} bad{{end}}"></span></div>
+      <a class="target" href="{{.Target}}" rel="noopener">{{.Target}}</a>
+      <div class="big">{{.Headline}}</div>
+      <div class="muted">{{.Sub}}</div>
+      {{if .Err}}<div class="err">{{.Err}}</div>{{end}}
+      {{.Spark}}
+      <div class="ticks" title="Last 60 checks, oldest first">{{range .Ticks}}<i class="{{.}}"></i>{{end}}</div>
+    </div>
+  {{end}}
+  </div>
+  {{end}}
+
+  {{if .Stocks}}
+  <h2>Stocks</h2>
+  <div class="grid">
+  {{range .Stocks}}
+    <div class="card">
+      <div class="row"><span class="name">{{.Label}}</span><span class="muted">{{.Target}}</span></div>
+      <div class="big">{{.Headline}}</div>
+      <div class="{{if ge .Change 0.0}}up{{else}}down{{end}}">{{.Sub}}</div>
+      {{if .Err}}<div class="err">Last check failed: {{.Err}}</div>{{end}}
+      {{.Spark}}
+    </div>
+  {{end}}
+  </div>
+  {{end}}
+
+  <footer class="muted">
+    Built with <a href="https://github.com/SasmithaTharushan/pulse">Pulse</a> · Go + GitHub Actions + GitHub Pages ·
+    <a href="history.json">raw data (JSON)</a> · Stock prices may be delayed.
+  </footer>
+</main>
+<script>
+  (function () {
+    var el = document.getElementById("upd");
+    var mins = Math.round((Date.now() - new Date(el.getAttribute("datetime"))) / 60000);
+    el.textContent = mins < 1 ? "just now" : mins < 60 ? mins + " min ago" : el.textContent;
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+# Runs Pulse on a schedule for free: checks everything, stores history on the
+# `data` branch, sends alerts, and publishes the dashboard to GitHub Pages.
+name: pulse
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 minutes (GitHub may delay scheduled runs a little)
+  workflow_dispatch: # "Run workflow" button
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # push history to the data branch
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pulse
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Restore history from the data branch
+        run: |
+          mkdir -p data
+          if git fetch --depth=1 origin data 2>/dev/null; then
+            git show FETCH_HEAD:history.json > data/history.json || true
+          fi
+
+      - name: Run checks
+        run: go run . run -config pulse.json -data data/history.json -out site
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FINNHUB_TOKEN: ${{ secrets.FINNHUB_TOKEN }}
+
+      # The data branch is force-pushed as a single commit every run, so the
+      # repository never grows no matter how long Pulse runs.
+      - name: Save history to the data branch
+        working-directory: data
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q -b data
+          git add history.json
+          git -c user.name="pulse-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "status data $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
