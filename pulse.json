@@ -1,6 +1,6 @@
 {
   "title": "Pulse Status",
-  "apiBase": "",
+  "apiBase": "https://pulse-beta-nine-93.vercel.app",
   "keep": 672,
   "sites": [
     { "name": "GitHub", "url": "https://github.com" },
