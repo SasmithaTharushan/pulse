@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/SasmithaTharushan/pulse/lookup"
 )
 
 func usage() {
@@ -131,7 +133,25 @@ func serve(client *http.Client, o opts) {
 		}
 	}()
 
-	srv := &http.Server{Addr: o.addr, Handler: http.FileServer(http.Dir(o.out))}
+	// Same routes as the Vercel functions in api/, for local development.
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.Dir(o.out)))
+	mux.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
+		lookup.Serve(w, r, 3600, func(ctx context.Context, r *http.Request) (any, error) {
+			return lookup.Search(ctx, r.URL.Query().Get("q"))
+		})
+	})
+	mux.HandleFunc("/api/quote", func(w http.ResponseWriter, r *http.Request) {
+		lookup.Serve(w, r, 60, func(ctx context.Context, r *http.Request) (any, error) {
+			return lookup.GetQuote(ctx, r.URL.Query().Get("symbol"))
+		})
+	})
+	mux.HandleFunc("/api/check", func(w http.ResponseWriter, r *http.Request) {
+		lookup.Serve(w, r, 30, func(ctx context.Context, r *http.Request) (any, error) {
+			return lookup.CheckSite(ctx, r.URL.Query().Get("url"))
+		})
+	})
+	srv := &http.Server{Addr: o.addr, Handler: mux}
 	go func() {
 		<-ctx.Done()
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)

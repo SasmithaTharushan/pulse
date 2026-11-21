@@ -14,17 +14,29 @@ Pulse combines two of my earlier projects, [websiteHealthChecker](https://github
 - **Concurrent checks** with goroutines and per-check timeouts
 - **Zero cost, no server:** GitHub Actions runs it every 15 minutes, history lives on a `data` branch, and Pages hosts the dashboard
 
+- **Live search:** anyone can search a company ("tesla") or check any website from the dashboard, powered by a Go serverless API on Vercel
+
 ## How it works
+Three free services, each doing what it's best at:
 ```
- GitHub Actions (cron */15)
-        │
-        ▼
+ ① Scheduled monitoring: GitHub Actions (cron */15)
   pulse run ──► Watchers (goroutines) ──► HTTPWatcher / StockWatcher
-        │                                        │
-        ├── history.json  ◄──────────────────────┘   (stored on the `data` branch)
+        ├── history.json   (stored on the `data` branch)
         ├── alerts ──► Discord / Telegram
-        └── site/index.html ──► GitHub Pages
+        └── site/index.html ──► ② GitHub Pages (dashboard + search box)
+                                        │  fetch (CORS)
+                                        ▼
+ ③ Live search API: Vercel Go functions (api/)
+    /api/search?q=tesla      → matching tickers      (CDN-cached 1 h)
+    /api/quote?symbol=TSLA   → price + 1-month chart (CDN-cached 60 s)
+    /api/check?url=site.com  → up/down, latency, TLS (CDN-cached 30 s)
 ```
+
+### Security & cost decisions
+- **SSRF protection:** `/api/check` fetches URLs that strangers type in, which could be abused to reach internal networks or cloud metadata (`169.254.169.254`). The guard runs inside the dialer on the **resolved IP at connect time**, so DNS rebinding and redirects to private addresses are blocked too. Only ports 80/443/8080/8443 are allowed. See `lookup/site.go`.
+- **CDN caching as rate limiting:** responses carry `s-maxage`, so Vercel's edge serves repeated lookups without calling Yahoo or the target site again.
+- **CORS** only allows the dashboard's origin (configurable with `ALLOWED_ORIGINS`).
+- **No HTML injection:** the search UI builds the page with `textContent` and never `innerHTML`.
 
 Adding a new kind of monitor means implementing one interface:
 ```go
@@ -50,12 +62,13 @@ type Watcher interface {
    | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Create a bot with @BotFather and get your chat id from @userinfobot |
    | `FINNHUB_TOKEN` | Free key from finnhub.io, if Yahoo ever starts blocking requests |
 5. **Actions → pulse → Run workflow.** Your dashboard will be at `https://<username>.github.io/pulse/`.
+6. *(Live search)* Import the repo at [vercel.com/new](https://vercel.com/new) with Framework Preset **Other** and no build command. Put the resulting URL in `pulse.json` as `"apiBase"`, and set `ALLOWED_ORIGINS` in Vercel to your Pages origin if it differs from the default.
 
 ## Run locally
 ```bash
 go run . check https://example.com   # one-off health check (exit 1 if down)
 go run . run                         # check once, write site/index.html
-go run . serve                       # check every 15 min, dashboard at http://localhost:8080
+go run . serve                       # dashboard + live search API at http://localhost:8080
 go test ./...
 ```
 
@@ -76,4 +89,4 @@ go test ./...
 - Yahoo's chart endpoint is unofficial. If it starts failing, add a free `FINNHUB_TOKEN` secret and Pulse switches to Finnhub automatically.
 
 ## Tech
-Go standard library only (no dependencies): `net/http`, `html/template`, `embed`, goroutines, `context`.
+Go standard library only (no dependencies): `net/http`, `html/template`, `embed`, goroutines, `context`. Hosting: GitHub Actions + GitHub Pages + Vercel, all on free tiers.

@@ -1,5 +1,6 @@
 {
   "title": "Pulse Status",
+  "apiBase": "",
   "keep": 672,
   "sites": [
     { "name": "GitHub", "url": "https://github.com" },

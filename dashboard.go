@@ -30,6 +30,7 @@ type cardView struct {
 
 type pageView struct {
 	Title      string
+	APIBase    string
 	Updated    string
 	UpdatedISO string
 	DownCount  int
@@ -41,6 +42,7 @@ type pageView struct {
 func RenderDashboard(cfg *Config, st *Store, ws []Watcher, outDir string) error {
 	pv := pageView{
 		Title:      cfg.Title,
+		APIBase:    strings.TrimRight(cfg.APIBase, "/"),
 		Updated:    st.Updated.UTC().Format("2006-01-02 15:04 UTC"),
 		UpdatedISO: st.Updated.UTC().Format(time.RFC3339),
 	}

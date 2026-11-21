@@ -10,6 +10,7 @@ import (
 // Config is loaded from pulse.json.
 type Config struct {
 	Title           string        `json:"title"`
+	APIBase         string        `json:"apiBase"` // live search API, e.g. https://pulse-api.vercel.app
 	IntervalMinutes int           `json:"intervalMinutes"` // only used by `pulse serve`
 	Keep            int           `json:"keep"`            // results kept per watcher
 	Sites           []SiteConfig  `json:"sites"`
